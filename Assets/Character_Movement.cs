@@ -8,12 +8,16 @@ public class Character_Movement : MonoBehaviour
     private Vector3 vVerticalVelocity;
     private bool bIsGrounded;
 
-    float smooth = 5.0f;
-    float tiltAngle = 60.0f;
+    //float smooth = 5.0f;
+    //float tiltAngle = 60.0f;
 
     public Camera mCamera;
     public float fWalkSpeed = 1.0f;
     public float fJumpHeight = 2.0f;
+
+    Vector3 Angles;
+    public float sensitivityX;
+    public float sensitivityY;
 
     // Start is called before the first frame update
     void Start()
@@ -31,15 +35,23 @@ public class Character_Movement : MonoBehaviour
 
     void rotateCharacter()
     {
-        // Smoothly tilts a transform towards a target rotation.
-        float tiltAroundY = mCamera.transform.rotation.y * tiltAngle;
-        float tiltAroundX = mCamera.transform.rotation.x * tiltAngle;
+        //// Smoothly tilts a transform towards a target rotation.
+        //float tiltAroundY = mCamera.transform.rotation.y * tiltAngle;
+        //float tiltAroundX = mCamera.transform.rotation.x * tiltAngle;
 
-        // Rotate the cube by converting the angles into a quaternion.
-        Quaternion target = Quaternion.Euler(tiltAroundX, tiltAroundY, 0.0f);
+        //// Rotate the cube by converting the angles into a quaternion.
+        //Quaternion target = Quaternion.Euler(tiltAroundX, tiltAroundY, 0.0f);
 
-        // Dampen towards the target rotation
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * smooth);
+        //// Dampen towards the target rotation
+        //transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * smooth);\
+
+        float rotationY = Input.GetAxis("Mouse Y") * sensitivityX;
+        float rotationX = Input.GetAxis("Mouse X") * sensitivityY;
+        if (rotationY > 0)
+            Angles = new Vector3(Mathf.MoveTowards(Angles.x, -80, rotationY), Angles.y + rotationX, 0);
+        else
+            Angles = new Vector3(Mathf.MoveTowards(Angles.x, 80, -rotationY), Angles.y + rotationX, 0);
+        transform.localEulerAngles = Angles;
     }
 
     void applyGravity()

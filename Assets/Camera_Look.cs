@@ -4,21 +4,22 @@ using UnityEngine;
 
 public class Camera_Look : MonoBehaviour
 {
-    private Vector2 rotation = Vector2.zero;
+    private Vector3 vRotation = Vector3.zero;
 
-    public float speed = 3;
+    public float fSpeed = 1;
 
     // Start is called before the first frame update
     void Start()
     {
-
+        Cursor.lockState = CursorLockMode.Locked;
     }
 
     // Update is called once per frame
     void Update()
     {
-        rotation.y += Input.GetAxis("Mouse X");
-        rotation.x += -Input.GetAxis("Mouse Y");
-        transform.eulerAngles = (Vector2)rotation * speed;
+        this.vRotation.y = Input.GetAxis("Mouse X");
+        this.vRotation.x = -Input.GetAxis("Mouse Y");
+
+        transform.rotation = Quaternion.LookRotation(this.vRotation * fSpeed * Time.deltaTime);
     }
 }
