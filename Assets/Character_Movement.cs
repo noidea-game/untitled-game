@@ -7,17 +7,24 @@ public class Character_Movement : MonoBehaviour
     private CharacterController mCharacter;
     private Vector3 vVerticalVelocity;
     private bool bIsGrounded;
+    private bool bIsCrouched;
     private Vector3 vInputAngle;
+    private float fStandHeight;
+    private float fTargetHeight;
 
     public Camera mCamera;
     public float fTurnSpeed = 1.0f;
     public float fWalkSpeed = 1.0f;
     public float fJumpHeight = 2.0f;
+    public float fCrouchHeight = 0.5f;
+    public float fCrouchSpeed = 1.0f;
+    public bool bCrouchToggle = false;
 
     // Start is called before the first frame update
     void Start()
     {
         this.mCharacter = gameObject.GetComponent<CharacterController>();
+        this.fTargetHeight = this.fStandHeight = this.mCharacter.height;
     }
 
     // Update is called once per frame
@@ -25,15 +32,15 @@ public class Character_Movement : MonoBehaviour
     {
         this.rotateCharacter();
         this.moveCharacter();
+        this.updateStance();
+        //Applying gravity needs to be last
         this.applyGravity();
     }
 
     void rotateCharacter()
     {
         float rotationX = Input.GetAxis("Mouse X") * this.fTurnSpeed * Time.deltaTime;
-
         vInputAngle = new Vector3(0.0f, vInputAngle.y + rotationX, 0.0f);
-
         transform.localEulerAngles = vInputAngle;
     }
 
@@ -54,26 +61,40 @@ public class Character_Movement : MonoBehaviour
     {
         this.bIsGrounded = this.mCharacter.isGrounded;
 
-        if (Input.GetKey("w"))
+        //Move
+        if (Input.GetKey(KeyCode.W))
         {
             this.Walk(this.mCharacter.transform.forward);
         }
-        if (Input.GetKey("s"))
+        if (Input.GetKey(KeyCode.S))
         {
             this.Walk(this.Inverse(this.mCharacter.transform.forward));
         }
-        if (Input.GetKey("a"))
+        if (Input.GetKey(KeyCode.A))
         {
             this.Walk(this.Inverse(this.mCharacter.transform.right));
         }
-        if (Input.GetKey("d"))
+        if (Input.GetKey(KeyCode.D))
         {
             this.Walk(this.mCharacter.transform.right);
         }
-        if (Input.GetKey("space") && this.bIsGrounded)
-        {
+
+        //Jump
+        if (this.bIsGrounded && Input.GetKeyDown(KeyCode.Space))
             this.Jump();
-        }
+    }
+
+    void updateStance()
+    {
+        //Check Crouch Conditions
+        if (this.bCrouchToggle)
+            this.CheckCrouchToggle();
+        else
+            this.CheckCrouchHold();
+
+        //Update Stance
+        if(!mCharacter.height.Equals(this.fTargetHeight))
+            mCharacter.height = Mathf.SmoothStep(mCharacter.height, this.fTargetHeight, (Time.deltaTime * this.fCrouchSpeed));
     }
 
     void Jump()
@@ -85,6 +106,34 @@ public class Character_Movement : MonoBehaviour
     void Walk(Vector3 _direction)
     {
         this.mCharacter.Move(_direction * this.fWalkSpeed * Time.deltaTime);
+    }
+
+    void CheckCrouchToggle()
+    {
+        if (!this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            this.Crouch();
+        else if (this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            this.Stand();
+    }
+
+    void CheckCrouchHold()
+    {
+        if (!this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            this.Crouch();
+        else if (this.bIsCrouched && Input.GetKeyUp(KeyCode.C))
+            this.Stand();
+    }
+
+    void Crouch()
+    {
+        this.fTargetHeight = this.fCrouchHeight;
+        this.bIsCrouched = true;
+    }
+
+    void Stand()
+    {
+        this.fTargetHeight = this.fStandHeight;
+        this.bIsCrouched = false;
     }
 
     Vector3 Inverse(Vector3 _direction)
