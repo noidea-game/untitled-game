@@ -30,26 +30,26 @@ public class Character_Movement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        this.rotateCharacter();
-        this.moveCharacter();
-        this.updateStance();
+        this.RotateCharacter();
+        this.MoveCharacter();
+        //Don't let the player crouch while jumping
+        if(this.bIsGrounded)
+            this.UpdateStance();
         //Applying gravity needs to be last
-        this.applyGravity();
+        this.ApplyGravity();
     }
 
-    void rotateCharacter()
+    void RotateCharacter()
     {
         float rotationX = Input.GetAxis("Mouse X") * this.fTurnSpeed * Time.deltaTime;
         vInputAngle = new Vector3(0.0f, vInputAngle.y + rotationX, 0.0f);
         transform.localEulerAngles = vInputAngle;
     }
 
-    void applyGravity()
+    void ApplyGravity()
     {
        if(mCharacter.isGrounded && this.vVerticalVelocity.y < 0)
-        {
             this.vVerticalVelocity = Vector3.zero;
-        }
        else
         {
             this.vVerticalVelocity += Physics.gravity * Time.deltaTime;
@@ -57,7 +57,7 @@ public class Character_Movement : MonoBehaviour
         }
     }
 
-    void moveCharacter()
+    void MoveCharacter()
     {
         this.bIsGrounded = this.mCharacter.isGrounded;
 
@@ -68,11 +68,11 @@ public class Character_Movement : MonoBehaviour
         }
         if (Input.GetKey(KeyCode.S))
         {
-            this.Walk(this.Inverse(this.mCharacter.transform.forward));
+            this.Walk(this.Invert(this.mCharacter.transform.forward));
         }
         if (Input.GetKey(KeyCode.A))
         {
-            this.Walk(this.Inverse(this.mCharacter.transform.right));
+            this.Walk(this.Invert(this.mCharacter.transform.right));
         }
         if (Input.GetKey(KeyCode.D))
         {
@@ -84,7 +84,7 @@ public class Character_Movement : MonoBehaviour
             this.Jump();
     }
 
-    void updateStance()
+    void UpdateStance()
     {
         //Check Crouch Conditions
         if (this.bCrouchToggle)
@@ -136,7 +136,7 @@ public class Character_Movement : MonoBehaviour
         this.bIsCrouched = false;
     }
 
-    Vector3 Inverse(Vector3 _direction)
+    Vector3 Invert(Vector3 _direction)
     {
         return _direction * -1;
     }
