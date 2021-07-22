@@ -11,6 +11,7 @@ public class Character_Movement : MonoBehaviour
     private Vector3 vInputAngle;
     private float fStandHeight;
     private float fTargetHeight;
+    private Vector3 vMovementDirection;
 
     public Camera mCamera;
     public float fTurnSpeed = 1.0f;
@@ -19,121 +20,128 @@ public class Character_Movement : MonoBehaviour
     public float fCrouchHeight = 0.5f;
     public float fCrouchSpeed = 1.0f;
     public bool bCrouchToggle = false;
+    public float fFriction = 1.0f;
+    public Animator animator;
 
     // Start is called before the first frame update
     void Start()
     {
-        this.mCharacter = gameObject.GetComponent<CharacterController>();
-        this.fTargetHeight = this.fStandHeight = this.mCharacter.height;
+        vMovementDirection = Vector3.zero;
+        mCharacter = gameObject.GetComponent<CharacterController>();
+        fTargetHeight = fStandHeight = mCharacter.height;
     }
 
     // Update is called once per frame
     void Update()
     {
-        this.RotateCharacter();
-        this.MoveCharacter();
+        vMovementDirection = mCharacter.velocity;
+
+        RotateCharacter();
+        MoveCharacter();
         //Don't let the player crouch while jumping
-        if(this.bIsGrounded)
-            this.UpdateStance();
+        UpdateStance();
         //Applying gravity needs to be last
-        this.ApplyGravity();
+        ApplyGravity();
+        ApplyFriction();
+
+        mCharacter.Move(vMovementDirection * Time.deltaTime);
     }
 
     void RotateCharacter()
     {
-        float rotationX = Input.GetAxis("Mouse X") * this.fTurnSpeed * Time.deltaTime;
+        float rotationX = Input.GetAxis("Mouse X") * fTurnSpeed * Time.deltaTime;
         vInputAngle = new Vector3(0.0f, vInputAngle.y + rotationX, 0.0f);
         transform.localEulerAngles = vInputAngle;
     }
 
     void ApplyGravity()
     {
-       if(mCharacter.isGrounded && this.vVerticalVelocity.y < 0)
-            this.vVerticalVelocity = Vector3.zero;
-       else
+       if(!mCharacter.isGrounded)
         {
-            this.vVerticalVelocity += Physics.gravity * Time.deltaTime;
-            this.mCharacter.Move(this.vVerticalVelocity * Time.deltaTime);
+            vMovementDirection += (Physics.gravity * Time.deltaTime);
         }
+    }
+
+    void ApplyFriction()
+    {
+        Vector3 frictionForce = vMovementDirection * fFriction;
+        frictionForce.y = 0;
+        vMovementDirection -= frictionForce * Time.deltaTime;
     }
 
     void MoveCharacter()
     {
-        this.bIsGrounded = this.mCharacter.isGrounded;
+        bIsGrounded = mCharacter.isGrounded;
 
         //Move
         if (Input.GetKey(KeyCode.W))
         {
-            this.Walk(this.mCharacter.transform.forward);
+            vMovementDirection += Walk(mCharacter.transform.forward);
         }
         if (Input.GetKey(KeyCode.S))
         {
-            this.Walk(this.Invert(this.mCharacter.transform.forward));
+            vMovementDirection += Walk(Invert(mCharacter.transform.forward));
         }
         if (Input.GetKey(KeyCode.A))
         {
-            this.Walk(this.Invert(this.mCharacter.transform.right));
+            vMovementDirection += Walk(Invert(mCharacter.transform.right));
         }
         if (Input.GetKey(KeyCode.D))
         {
-            this.Walk(this.mCharacter.transform.right);
+            vMovementDirection += Walk(mCharacter.transform.right);
         }
 
         //Jump
-        if (this.bIsGrounded && Input.GetKeyDown(KeyCode.Space))
-            this.Jump();
+        if (bIsGrounded && Input.GetKeyDown(KeyCode.Space))
+            vMovementDirection += Jump();
     }
 
     void UpdateStance()
     {
         //Check Crouch Conditions
-        if (this.bCrouchToggle)
-            this.CheckCrouchToggle();
+        if (bCrouchToggle)
+            CheckCrouchToggle();
         else
-            this.CheckCrouchHold();
-
-        //Update Stance
-        if(!mCharacter.height.Equals(this.fTargetHeight))
-            mCharacter.height = Mathf.SmoothStep(mCharacter.height, this.fTargetHeight, (Time.deltaTime * this.fCrouchSpeed));
+            CheckCrouchHold();
     }
 
-    void Jump()
+    Vector3 Jump()
     {
-        this.vVerticalVelocity.y += Mathf.Sqrt(this.fJumpHeight * -3.0f * Physics.gravity.y);
-        this.mCharacter.Move(this.vVerticalVelocity * Time.deltaTime);
+        Vector3 direction = new Vector3(0, fJumpHeight);
+        return direction;
     }
 
-    void Walk(Vector3 _direction)
+    Vector3 Walk(Vector3 direction)
     {
-        this.mCharacter.Move(_direction * this.fWalkSpeed * Time.deltaTime);
+        return direction * fWalkSpeed;
     }
 
     void CheckCrouchToggle()
     {
-        if (!this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
-            this.Crouch();
-        else if (this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
-            this.Stand();
+        if (!bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Crouch();
+        else if (bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Stand();
     }
 
     void CheckCrouchHold()
     {
-        if (!this.bIsCrouched && Input.GetKeyDown(KeyCode.C))
-            this.Crouch();
-        else if (this.bIsCrouched && Input.GetKeyUp(KeyCode.C))
-            this.Stand();
+        if (!bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Crouch();
+        else if (bIsCrouched && Input.GetKeyUp(KeyCode.C))
+            Stand();
     }
 
     void Crouch()
     {
-        this.fTargetHeight = this.fCrouchHeight;
-        this.bIsCrouched = true;
+        animator.SetBool("isCrouching", true);
+        bIsCrouched = true;
     }
 
     void Stand()
     {
-        this.fTargetHeight = this.fStandHeight;
-        this.bIsCrouched = false;
+        animator.SetBool("isCrouching", false);
+        bIsCrouched = false;
     }
 
     Vector3 Invert(Vector3 _direction)
