@@ -7,88 +7,145 @@ public class Character_Movement : MonoBehaviour
     private CharacterController mCharacter;
     private Vector3 vVerticalVelocity;
     private bool bIsGrounded;
-
-    float smooth = 5.0f;
-    float tiltAngle = 60.0f;
+    private bool bIsCrouched;
+    private Vector3 vInputAngle;
+    private float fStandHeight;
+    private float fTargetHeight;
+    private Vector3 vMovementDirection;
 
     public Camera mCamera;
+    public float fTurnSpeed = 1.0f;
     public float fWalkSpeed = 1.0f;
     public float fJumpHeight = 2.0f;
+    public float fCrouchHeight = 0.5f;
+    public float fCrouchSpeed = 1.0f;
+    public bool bCrouchToggle = false;
+    public float fFriction = 1.0f;
+    public Animator animator;
 
     // Start is called before the first frame update
     void Start()
     {
-        this.mCharacter = gameObject.GetComponent<CharacterController>();
+        vMovementDirection = Vector3.zero;
+        mCharacter = gameObject.GetComponent<CharacterController>();
+        fTargetHeight = fStandHeight = mCharacter.height;
     }
 
     // Update is called once per frame
     void Update()
     {
-        this.rotateCharacter();
-        this.moveCharacter();
-        this.applyGravity();
+        vMovementDirection = mCharacter.velocity;
+
+        RotateCharacter();
+        MoveCharacter();
+        //Don't let the player crouch while jumping
+        UpdateStance();
+        //Applying gravity needs to be last
+        ApplyGravity();
+        ApplyFriction();
+
+        mCharacter.Move(vMovementDirection * Time.deltaTime);
     }
 
-    void rotateCharacter()
+    void RotateCharacter()
     {
-        // Smoothly tilts a transform towards a target rotation.
-        float tiltAroundY = mCamera.transform.rotation.y * tiltAngle;
-        float tiltAroundX = mCamera.transform.rotation.x * tiltAngle;
-
-        // Rotate the cube by converting the angles into a quaternion.
-        Quaternion target = Quaternion.Euler(tiltAroundX, tiltAroundY, 0.0f);
-
-        // Dampen towards the target rotation
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * smooth);
+        float rotationX = Input.GetAxis("Mouse X") * fTurnSpeed * Time.deltaTime;
+        vInputAngle = new Vector3(0.0f, vInputAngle.y + rotationX, 0.0f);
+        transform.localEulerAngles = vInputAngle;
     }
 
-    void applyGravity()
+    void ApplyGravity()
     {
-       if(mCharacter.isGrounded && this.vVerticalVelocity.y < 0)
+       if(!mCharacter.isGrounded)
         {
-            this.vVerticalVelocity = Vector3.zero;
-        }
-       else
-        {
-            this.vVerticalVelocity += Physics.gravity * Time.deltaTime;
-            this.mCharacter.Move(this.vVerticalVelocity * Time.deltaTime);
+            vMovementDirection += (Physics.gravity * Time.deltaTime);
         }
     }
 
-    void moveCharacter()
+    void ApplyFriction()
     {
-        this.bIsGrounded = this.mCharacter.isGrounded;
-
-        if (Input.GetKey("w"))
-        {
-            this.Walk(Vector3.forward);
-        }
-        if (Input.GetKey("s"))
-        {
-            this.Walk(Vector3.back);
-        }
-        if (Input.GetKey("a"))
-        {
-            this.Walk(Vector3.left);
-        }
-        if (Input.GetKey("d"))
-        {
-            this.Walk(Vector3.right);
-        }
-        if (Input.GetKey("space") && this.bIsGrounded)
-        {
-            this.Jump();
-        }
+        Vector3 frictionForce = vMovementDirection * fFriction;
+        frictionForce.y = 0;
+        vMovementDirection -= frictionForce * Time.deltaTime;
     }
 
-    void Jump()
+    void MoveCharacter()
     {
-        this.vVerticalVelocity.y += Mathf.Sqrt(this.fJumpHeight * -3.0f * Physics.gravity.y);
-        this.mCharacter.Move(this.vVerticalVelocity * Time.deltaTime);
+        bIsGrounded = mCharacter.isGrounded;
+
+        //Move
+        if (Input.GetKey(KeyCode.W))
+        {
+            vMovementDirection += Walk(mCharacter.transform.forward);
+        }
+        if (Input.GetKey(KeyCode.S))
+        {
+            vMovementDirection += Walk(Invert(mCharacter.transform.forward));
+        }
+        if (Input.GetKey(KeyCode.A))
+        {
+            vMovementDirection += Walk(Invert(mCharacter.transform.right));
+        }
+        if (Input.GetKey(KeyCode.D))
+        {
+            vMovementDirection += Walk(mCharacter.transform.right);
+        }
+
+        //Jump
+        if (bIsGrounded && Input.GetKeyDown(KeyCode.Space))
+            vMovementDirection += Jump();
     }
 
-    void Walk(Vector3 _direction)
+    void UpdateStance()
     {
-        this.mCharacter.Move(_direction * this.fWalkSpeed * Time.deltaTime);
+        //Check Crouch Conditions
+        if (bCrouchToggle)
+            CheckCrouchToggle();
+        else
+            CheckCrouchHold();
+    }
+
+    Vector3 Jump()
+    {
+        Vector3 direction = new Vector3(0, fJumpHeight);
+        return direction;
+    }
+
+    Vector3 Walk(Vector3 direction)
+    {
+        return direction * fWalkSpeed;
+    }
+
+    void CheckCrouchToggle()
+    {
+        if (!bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Crouch();
+        else if (bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Stand();
+    }
+
+    void CheckCrouchHold()
+    {
+        if (!bIsCrouched && Input.GetKeyDown(KeyCode.C))
+            Crouch();
+        else if (bIsCrouched && Input.GetKeyUp(KeyCode.C))
+            Stand();
+    }
+
+    void Crouch()
+    {
+        animator.SetBool("isCrouching", true);
+        bIsCrouched = true;
+    }
+
+    void Stand()
+    {
+        animator.SetBool("isCrouching", false);
+        bIsCrouched = false;
+    }
+
+    Vector3 Invert(Vector3 _direction)
+    {
+        return _direction * -1;
     }
 }
