@@ -6,19 +6,20 @@ public class Character_Movement : MonoBehaviour
 {
     private CharacterController mCharacter;
     private Vector3 vVerticalVelocity;
-    private bool bIsGrounded;
     private bool bIsCrouched;
     private Vector3 vInputAngle;
-    private float fStandHeight;
-    private float fTargetHeight;
     private Vector3 vMovementDirection;
+    private Ray ray;
+    private RaycastHit raycastHitInfo;
+
+    public enum CharacterState { idle = 0, walking, jumping, crouching };
+    public CharacterState currentState;
+    CharacterState nextState;
 
     public Camera mCamera;
-    public float fTurnSpeed = 1.0f;
     public float fWalkSpeed = 1.0f;
-    public float fJumpHeight = 2.0f;
-    public float fCrouchHeight = 0.5f;
-    public float fCrouchSpeed = 1.0f;
+    public float fTurnSpeed = 1.0f;
+    public float fJumpHeight = 1.0f;
     public bool bCrouchToggle = false;
     public float fFriction = 1.0f;
     public Animator animator;
@@ -28,7 +29,8 @@ public class Character_Movement : MonoBehaviour
     {
         vMovementDirection = Vector3.zero;
         mCharacter = gameObject.GetComponent<CharacterController>();
-        fTargetHeight = fStandHeight = mCharacter.height;
+        raycastHitInfo = new RaycastHit();
+        currentState = CharacterState.walking;
     }
 
     // Update is called once per frame
@@ -36,13 +38,28 @@ public class Character_Movement : MonoBehaviour
     {
         vMovementDirection = mCharacter.velocity;
 
+        switch(currentState)
+        {
+            case CharacterState.walking:
+                {
+                    UpdateStance();
+                    ApplySlope();
+                    //Prevents character from popping up when going up a slope.
+                    GroundClamp();
+                    break;
+                }
+            case CharacterState.jumping:
+                {
+                    if (mCharacter.isGrounded)
+                        currentState = CharacterState.walking;
+                    break;
+                }
+        }
+
         RotateCharacter();
         MoveCharacter();
-        //Don't let the player crouch while jumping
-        UpdateStance();
-        //Applying gravity needs to be last
-        ApplyGravity();
         ApplyFriction();
+        ApplyGravity();
 
         mCharacter.Move(vMovementDirection * Time.deltaTime);
     }
@@ -56,10 +73,11 @@ public class Character_Movement : MonoBehaviour
 
     void ApplyGravity()
     {
-       if(!mCharacter.isGrounded)
-        {
+        if (!mCharacter.isGrounded)
             vMovementDirection += (Physics.gravity * Time.deltaTime);
-        }
+        else
+            vMovementDirection += Physics.gravity.normalized;
+
     }
 
     void ApplyFriction()
@@ -69,10 +87,18 @@ public class Character_Movement : MonoBehaviour
         vMovementDirection -= frictionForce * Time.deltaTime;
     }
 
+    void ApplySlope()
+    {
+        ray = new Ray(transform.position, Vector3.down);
+        Physics.Raycast(ray, out raycastHitInfo, 100);
+
+        //Prevents character from 'bouncing' when going down a slope
+        if (raycastHitInfo.normal.y < 1)
+            vMovementDirection.y -= raycastHitInfo.normal.normalized.y;
+    }
+
     void MoveCharacter()
     {
-        bIsGrounded = mCharacter.isGrounded;
-
         //Move
         if (Input.GetKey(KeyCode.W))
         {
@@ -91,9 +117,11 @@ public class Character_Movement : MonoBehaviour
             vMovementDirection += Walk(mCharacter.transform.right);
         }
 
-        //Jump
-        if (bIsGrounded && Input.GetKeyDown(KeyCode.Space))
+        if (mCharacter.isGrounded && Input.GetKeyDown(KeyCode.Space))
+        {
             vMovementDirection += Jump();
+            currentState = CharacterState.jumping;
+        }
     }
 
     void UpdateStance()
@@ -107,8 +135,7 @@ public class Character_Movement : MonoBehaviour
 
     Vector3 Jump()
     {
-        Vector3 direction = new Vector3(0, fJumpHeight);
-        return direction;
+        return new Vector3(0, fJumpHeight);
     }
 
     Vector3 Walk(Vector3 direction)
@@ -147,5 +174,11 @@ public class Character_Movement : MonoBehaviour
     Vector3 Invert(Vector3 _direction)
     {
         return _direction * -1;
+    }
+
+    void GroundClamp()
+    {
+        if (vMovementDirection.y > 0)
+            vMovementDirection.y = 0;
     }
 }
