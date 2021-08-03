@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Character_Movement : MonoBehaviour
 {
@@ -19,10 +20,13 @@ public class Character_Movement : MonoBehaviour
     public Camera mCamera;
     public float fWalkSpeed = 1.0f;
     public float fTurnSpeed = 1.0f;
-    public float fJumpHeight = 1.0f;
+    public float fJumpHeight = 1.5f;
     public bool bCrouchToggle = false;
     public float fFriction = 1.0f;
     public Animator animator;
+
+    public Text DebugText { get; set; }
+    private Vector3 JumpVelocity = Vector3.zero;
 
     // Start is called before the first frame update
     void Start()
@@ -31,6 +35,7 @@ public class Character_Movement : MonoBehaviour
         mCharacter = gameObject.GetComponent<CharacterController>();
         raycastHitInfo = new RaycastHit();
         currentState = CharacterState.walking;
+        DebugText = GameObject.Find("DebugText").GetComponent<Text>();
     }
 
     // Update is called once per frame
@@ -61,7 +66,13 @@ public class Character_Movement : MonoBehaviour
         ApplyFriction();
         ApplyGravity();
 
-        mCharacter.Move(vMovementDirection * Time.deltaTime);
+        if(!mCharacter.isGrounded)
+        {
+            //vMovementDirection *= .2;
+            JumpVelocity.y -= Physics.gravity.y * Time.deltaTime;
+        }
+
+        mCharacter.Move((vMovementDirection) * Time.deltaTime);
     }
 
     void RotateCharacter()
@@ -73,10 +84,11 @@ public class Character_Movement : MonoBehaviour
 
     void ApplyGravity()
     {
-        if (!mCharacter.isGrounded)
-            vMovementDirection += (Physics.gravity * Time.deltaTime);
-        else
-            vMovementDirection += Physics.gravity.normalized;
+        vMovementDirection += (Physics.gravity * Time.deltaTime);
+        //if (!mCharacter.isGrounded)
+        //    vMovementDirection += (Physics.gravity * Time.deltaTime);
+        //else
+        //    vMovementDirection += Physics.gravity.normalized;
 
     }
 
@@ -100,19 +112,22 @@ public class Character_Movement : MonoBehaviour
     void MoveCharacter()
     {
         //Move
-        if (Input.GetKey(KeyCode.W))
+        if (Input.GetKey(KeyCode.W) && currentState != CharacterState.jumping)
         {
             vMovementDirection += Walk(mCharacter.transform.forward);
         }
-        if (Input.GetKey(KeyCode.S))
+
+        if (Input.GetKey(KeyCode.S) && currentState != CharacterState.jumping)
         {
             vMovementDirection += Walk(Invert(mCharacter.transform.forward));
         }
-        if (Input.GetKey(KeyCode.A))
+
+        if (Input.GetKey(KeyCode.A) && currentState != CharacterState.jumping)
         {
             vMovementDirection += Walk(Invert(mCharacter.transform.right));
         }
-        if (Input.GetKey(KeyCode.D))
+
+        if (Input.GetKey(KeyCode.D) && currentState != CharacterState.jumping)
         {
             vMovementDirection += Walk(mCharacter.transform.right);
         }
@@ -121,6 +136,15 @@ public class Character_Movement : MonoBehaviour
         {
             vMovementDirection += Jump();
             currentState = CharacterState.jumping;
+        }
+        else
+        {
+            JumpVelocity = Vector3.zero;
+        }
+
+        if(currentState == CharacterState.jumping)
+        {
+            vMovementDirection += mCharacter.transform.forward;
         }
     }
 
@@ -132,9 +156,14 @@ public class Character_Movement : MonoBehaviour
         else
             CheckCrouchHold();
     }
-
+    int i = 1;
     Vector3 Jump()
     {
+        DebugText.text = $"Jump! {i.ToString()}";
+        i++;
+        JumpVelocity = vMovementDirection;
+        JumpVelocity.y = 2;
+
         return new Vector3(0, fJumpHeight);
     }
 
