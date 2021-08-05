@@ -12,10 +12,7 @@ public class Character_Movement : MonoBehaviour
     private Ray ray;
     private RaycastHit raycastHitInfo;
 
-    public enum CharacterState { idle = 0, walking, jumping, crouching };
-    public CharacterState currentState;
-    CharacterState nextState;
-
+    public GameObject currSpawnPoint;
     public Camera mCamera;
     public float fWalkSpeed = 1.0f;
     public float fTurnSpeed = 1.0f;
@@ -23,6 +20,7 @@ public class Character_Movement : MonoBehaviour
     public bool bCrouchToggle = false;
     public float fFriction = 1.0f;
     public Animator animator;
+    public bool bIsJumping = false;
 
     // Start is called before the first frame update
     void Start()
@@ -30,7 +28,7 @@ public class Character_Movement : MonoBehaviour
         vMovementDirection = Vector3.zero;
         mCharacter = gameObject.GetComponent<CharacterController>();
         raycastHitInfo = new RaycastHit();
-        currentState = CharacterState.walking;
+        ResetCharacter();
     }
 
     // Update is called once per frame
@@ -38,28 +36,12 @@ public class Character_Movement : MonoBehaviour
     {
         vMovementDirection = mCharacter.velocity;
 
-        switch(currentState)
-        {
-            case CharacterState.walking:
-                {
-                    UpdateStance();
-                    ApplySlope();
-                    //Prevents character from popping up when going up a slope.
-                    GroundClamp();
-                    break;
-                }
-            case CharacterState.jumping:
-                {
-                    if (mCharacter.isGrounded)
-                        currentState = CharacterState.walking;
-                    break;
-                }
-        }
-
         RotateCharacter();
         MoveCharacter();
+        UpdateStance();
         ApplyFriction();
         ApplyGravity();
+        JumpCheck();
 
         mCharacter.Move(vMovementDirection * Time.deltaTime);
     }
@@ -76,8 +58,10 @@ public class Character_Movement : MonoBehaviour
         if (!mCharacter.isGrounded)
             vMovementDirection += (Physics.gravity * Time.deltaTime);
         else
+        {
+            bIsJumping = false;
             vMovementDirection += Physics.gravity.normalized;
-
+        }
     }
 
     void ApplyFriction()
@@ -116,12 +100,6 @@ public class Character_Movement : MonoBehaviour
         {
             vMovementDirection += Walk(mCharacter.transform.right);
         }
-
-        if (mCharacter.isGrounded && Input.GetKeyDown(KeyCode.Space))
-        {
-            vMovementDirection += Jump();
-            currentState = CharacterState.jumping;
-        }
     }
 
     void UpdateStance()
@@ -131,6 +109,24 @@ public class Character_Movement : MonoBehaviour
             CheckCrouchToggle();
         else
             CheckCrouchHold();
+    }
+
+    void JumpCheck()
+    {
+        //Is the character jumping?
+        if (mCharacter.isGrounded && Input.GetKeyDown(KeyCode.Space))
+        {
+            vMovementDirection += Jump();
+            bIsJumping = true;
+        }
+
+        //Or are they staying on the ground?
+        if (!bIsJumping)
+        {
+            ApplySlope();
+            //Prevents character from popping up when going up a slope.
+            GroundClamp();
+        }
     }
 
     Vector3 Jump()
@@ -180,5 +176,10 @@ public class Character_Movement : MonoBehaviour
     {
         if (vMovementDirection.y > 0)
             vMovementDirection.y = 0;
+    }
+
+    public void ResetCharacter()
+    {
+        transform.SetPositionAndRotation(currSpawnPoint.transform.position, currSpawnPoint.transform.rotation);
     }
 }
