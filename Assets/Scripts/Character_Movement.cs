@@ -5,7 +5,6 @@ using UnityEngine;
 public class Character_Movement : MonoBehaviour
 {
     private CharacterController mCharacter;
-    private Vector3 vVerticalVelocity;
     private bool bIsCrouched;
     private Vector3 vInputAngle;
     private Vector3 vMovementDirection;
@@ -44,6 +43,9 @@ public class Character_Movement : MonoBehaviour
         JumpCheck();
 
         mCharacter.Move(vMovementDirection * Time.deltaTime);
+
+        if (Input.GetKeyDown(KeyCode.R))
+            ResetCharacter();
     }
 
     void RotateCharacter()
@@ -180,6 +182,11 @@ public class Character_Movement : MonoBehaviour
 
     public void ResetCharacter()
     {
-        transform.SetPositionAndRotation(currSpawnPoint.transform.position, currSpawnPoint.transform.rotation);
+        //Zero out the velocities
+        mCharacter.velocity.Set(0, 0, 0);
+        vMovementDirection.Set(0, 0, 0);
+
+        //Set Character position to current spawn point
+        mCharacter.transform.SetPositionAndRotation(currSpawnPoint.transform.position, Quaternion.identity);
     }
 }
