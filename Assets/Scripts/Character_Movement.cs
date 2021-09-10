@@ -10,6 +10,7 @@ public class Character_Movement : MonoBehaviour
     private Vector3 vMovementDirection;
     private Ray ray;
     private RaycastHit raycastHitInfo;
+    private Vector3 exVel;
 
     public GameObject currSpawnPoint;
     public Camera mCamera;
@@ -35,6 +36,9 @@ public class Character_Movement : MonoBehaviour
     {
         vMovementDirection = mCharacter.velocity;
 
+        //apply any external veleocities
+        vMovementDirection += exVel;
+
         RotateCharacter();
         MoveCharacter();
         UpdateStance();
@@ -43,9 +47,6 @@ public class Character_Movement : MonoBehaviour
         JumpCheck();
 
         mCharacter.Move(vMovementDirection * Time.deltaTime);
-
-        if (Input.GetKeyDown(KeyCode.R))
-            ResetCharacter();
     }
 
     void RotateCharacter()
@@ -182,11 +183,20 @@ public class Character_Movement : MonoBehaviour
 
     public void ResetCharacter()
     {
+        mCharacter.enabled = false;
+
         //Zero out the velocities
         mCharacter.velocity.Set(0, 0, 0);
         vMovementDirection.Set(0, 0, 0);
 
         //Set Character position to current spawn point
         mCharacter.transform.SetPositionAndRotation(currSpawnPoint.transform.position, Quaternion.identity);
+
+        mCharacter.enabled = true;
+    }
+
+    public void ExternalVelocity(Vector3 v)
+    {
+        exVel = Invert(v * Time.deltaTime);
     }
 }
