@@ -22,7 +22,7 @@ public class Moving_Platform : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         platformVelocity = Vector3.MoveTowards(transform.position, endPoint.transform.position, moveSpeed * Time.deltaTime);
 
@@ -46,6 +46,6 @@ public class Moving_Platform : MonoBehaviour
     private void OnTriggerStay(Collider other)
     {
         if (other.tag == "Player")
-            cc.GetComponent<Character_Movement>().ExternalVelocity(platformVelocity);
+            cc.GetComponent<Character_Movement>().ExternalVelocity(rb.velocity);
     }
 }

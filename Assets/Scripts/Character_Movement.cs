@@ -197,6 +197,8 @@ public class Character_Movement : MonoBehaviour
 
     public void ExternalVelocity(Vector3 v)
     {
-        exVel = Invert(v * Time.deltaTime);
+        exVel = v * Time.deltaTime;
+        print("Velocity:" + v);
+        print("ExVel: " + exVel);
     }
 }
