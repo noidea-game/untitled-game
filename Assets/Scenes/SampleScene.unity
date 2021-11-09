@@ -596,9 +596,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currSpawnPoint: {fileID: 1918473216}
   mCamera: {fileID: 963194227}
-  fWalkSpeed: 0.25
+  fWalkSpeed: 2
   fTurnSpeed: 100
-  fJumpHeight: 4.5
+  fJumpHeight: 10
   bCrouchToggle: 1
   fFriction: 15
   animator: {fileID: 757550754}

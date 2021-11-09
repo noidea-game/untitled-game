@@ -9,7 +9,7 @@ public class Moving_Platform : MonoBehaviour
     public GameObject endPoint;
     public float moveSpeed;
 
-    Vector3 platformVelocity;
+    Vector3 platformTarget;
     float bounceDist = 1f;
 
     CharacterController cc;
@@ -24,7 +24,7 @@ public class Moving_Platform : MonoBehaviour
     // Update is called once per frame
     void FixedUpdate()
     {
-        platformVelocity = Vector3.MoveTowards(transform.position, endPoint.transform.position, moveSpeed * Time.deltaTime);
+        platformTarget = Vector3.MoveTowards(transform.position, endPoint.transform.position, moveSpeed * Time.deltaTime);
 
         float distFromStart = Vector3.Distance(transform.position, startPoint.transform.position);
         float distFromEnd = Vector3.Distance(transform.position, endPoint.transform.position);
@@ -34,18 +34,18 @@ public class Moving_Platform : MonoBehaviour
             moveSpeed *= -1;
         }
 
-        rb.MovePosition(platformVelocity);
+        rb.MovePosition(platformTarget);
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.tag == "Player")
+        if(other.CompareTag("Player"))
             cc = other.GetComponent<CharacterController>();
     }
 
     private void OnTriggerStay(Collider other)
     {
-        if (other.tag == "Player")
+        if (other.CompareTag("Player"))
             cc.GetComponent<Character_Movement>().ExternalVelocity(rb.velocity);
     }
 }
