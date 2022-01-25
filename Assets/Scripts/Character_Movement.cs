@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Character_Movement : MonoBehaviour
 {
@@ -11,18 +12,25 @@ public class Character_Movement : MonoBehaviour
     private RaycastHit raycastHitInfo;
     private Vector3 exVel;
     private int nJumpCount = 0;
+    private float fCurrentSpeed = 1.0f;
 
     public GameObject currSpawnPoint;
     public Camera mCamera;
-    public float fMoveSpeed = 1.0f;
     public float fTurnSpeed = 1.0f;
     public float fJumpHeight = 1.0f;
     public int nJumpMax = 1;
     public float fFriction = 1.0f;
     public Animator animator;
 
+    public float fAcceleration = 0.2f;
+    public float fSprintSpeed = 5.0f;
+    public float fWalkSpeed = 1.0f;
+    public float fSneakSpeed = 0.5f;
+
     //Toggle between hold to crouch and crouch toggle
     public bool bCrouchToggle = false;
+
+    public Text guiSpeed;
 
     //Movement Toggles
     private bool bMoveForward = false;
@@ -43,6 +51,7 @@ public class Character_Movement : MonoBehaviour
 
     private void Update()
     {
+        guiSpeed.text = "Speed: " + fCurrentSpeed;
         InputRotation();
         InputMovement();
     }
@@ -101,6 +110,34 @@ public class Character_Movement : MonoBehaviour
             CheckCrouchToggle();
         else
             CheckCrouchHold();
+
+        AdjustSpeed();
+    }
+
+    void AdjustSpeed()
+    {
+        bool sprint = Input.GetKey(KeyCode.LeftShift);
+        bool sneak = Input.GetKey(KeyCode.LeftControl);
+
+        //Prep sprint
+        if (!isMoving() && sprint)
+            ChangeSpeed(fSprintSpeed, fAcceleration * 2.0f);
+
+        //Accelerate to sprint
+        if (isMoving() && sprint)
+            ChangeSpeed(fSprintSpeed, fAcceleration);
+
+        //Prep sneak
+        if (!isMoving() && sneak)
+            fCurrentSpeed = fSneakSpeed;
+
+        //Deccelerate to sneak
+        if (isMoving() && sneak)
+            ChangeSpeed(fSneakSpeed, fAcceleration);
+
+        //Stop/Reset
+        if (!isMoving() && !sprint && !sneak && fCurrentSpeed != fWalkSpeed)
+            fCurrentSpeed = fWalkSpeed;
     }
 
     void ApplyMovement()
@@ -176,7 +213,7 @@ public class Character_Movement : MonoBehaviour
 
     Vector3 MoveChar(Vector3 direction)
     {
-        return direction * fMoveSpeed;
+        return direction * fCurrentSpeed;
     }
 
     void CheckCrouchToggle()
@@ -205,6 +242,16 @@ public class Character_Movement : MonoBehaviour
     {
         animator.SetBool("isCrouching", false);
         bIsCrouched = false;
+    }
+
+    void ChangeSpeed(float target, float accel)
+    {
+        fCurrentSpeed = Mathf.MoveTowards(fCurrentSpeed, target, Time.deltaTime * accel);
+    }
+
+    bool isMoving()
+    {
+        return bMoveBackward || bMoveForward || bMoveLeft || bMoveRight;
     }
 
     Vector3 Invert(Vector3 _direction)
