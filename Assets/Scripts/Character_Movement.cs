@@ -1,28 +1,44 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Character_Movement : MonoBehaviour
 {
     private CharacterController mCharacter;
-    private Vector3 vVerticalVelocity;
-    private bool bIsCrouched;
     private Vector3 vInputAngle;
     private Vector3 vMovementDirection;
     private Ray ray;
     private RaycastHit raycastHitInfo;
+    private Vector3 exVel;
+    private int nJumpCount = 0;
+    private float fCurrentSpeed = 1.0f;
 
-    public enum CharacterState { idle = 0, walking, jumping, crouching };
-    public CharacterState currentState;
-    CharacterState nextState;
-
+    public GameObject currSpawnPoint;
     public Camera mCamera;
-    public float fWalkSpeed = 1.0f;
     public float fTurnSpeed = 1.0f;
     public float fJumpHeight = 1.0f;
-    public bool bCrouchToggle = false;
+    public int nJumpMax = 1;
     public float fFriction = 1.0f;
     public Animator animator;
+
+    public float fAcceleration = 0.2f;
+    public float fSprintSpeed = 5.0f;
+    public float fWalkSpeed = 1.0f;
+    public float fSneakSpeed = 0.5f;
+
+    //Toggle between hold to crouch and crouch toggle
+    public bool bCrouchToggle = false;
+
+    public Text guiSpeed;
+
+    //Movement Toggles
+    private bool bMoveForward = false;
+    private bool bMoveBackward = false;
+    private bool bMoveLeft = false;
+    private bool bMoveRight = false;
+    private bool bIsCrouched = false;
+    private bool bIsJumping = false;
 
     // Start is called before the first frame update
     void Start()
@@ -30,54 +46,141 @@ public class Character_Movement : MonoBehaviour
         vMovementDirection = Vector3.zero;
         mCharacter = gameObject.GetComponent<CharacterController>();
         raycastHitInfo = new RaycastHit();
-        currentState = CharacterState.walking;
+        ResetCharacter();
+    }
+
+    private void Update()
+    {
+        guiSpeed.text = "Speed: " + fCurrentSpeed;
+        InputRotation();
+        InputMovement();
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
-        vMovementDirection = mCharacter.velocity;
+        ApplyMovement();
+        ApplySlope();
 
-        switch(currentState)
-        {
-            case CharacterState.walking:
-                {
-                    UpdateStance();
-                    ApplySlope();
-                    //Prevents character from popping up when going up a slope.
-                    GroundClamp();
-                    break;
-                }
-            case CharacterState.jumping:
-                {
-                    if (mCharacter.isGrounded)
-                        currentState = CharacterState.walking;
-                    break;
-                }
-        }
+        if(bIsJumping)
+            ApplyJump();
 
-        RotateCharacter();
-        MoveCharacter();
         ApplyFriction();
         ApplyGravity();
 
-        mCharacter.Move(vMovementDirection * Time.deltaTime);
+        //Apply external forces and move character
+        mCharacter.Move((vMovementDirection + exVel) * Time.deltaTime);
+
+        //Reset external velocities
+        exVel = Vector3.zero;
     }
 
-    void RotateCharacter()
+    void InputRotation()
     {
         float rotationX = Input.GetAxis("Mouse X") * fTurnSpeed * Time.deltaTime;
         vInputAngle = new Vector3(0.0f, vInputAngle.y + rotationX, 0.0f);
         transform.localEulerAngles = vInputAngle;
     }
 
+    void InputMovement()
+    {
+        //Movement Inputs
+        if (Input.GetKey(KeyCode.W))
+        {
+            bMoveForward = true;
+        }
+        if (Input.GetKey(KeyCode.S))
+        {
+            bMoveBackward = true;
+        }
+        if (Input.GetKey(KeyCode.A))
+        {
+            bMoveLeft = true;
+        }
+        if (Input.GetKey(KeyCode.D))
+        {
+            bMoveRight = true;
+        }
+        //Jump Input
+        if (nJumpCount < nJumpMax && Input.GetKeyDown(KeyCode.Space))
+            bIsJumping = true;
+        
+        //Crouch Input
+        if (bCrouchToggle)
+            CheckCrouchToggle();
+        else
+            CheckCrouchHold();
+
+        AdjustSpeed();
+    }
+
+    void AdjustSpeed()
+    {
+        bool sprint = Input.GetKey(KeyCode.LeftShift);
+        bool sneak = Input.GetKey(KeyCode.LeftControl);
+
+        //Prep sprint
+        if (!isMoving() && sprint)
+            ChangeSpeed(fSprintSpeed, fAcceleration * 2.0f);
+
+        //Accelerate to sprint
+        if (isMoving() && sprint)
+            ChangeSpeed(fSprintSpeed, fAcceleration);
+
+        //Prep sneak
+        if (!isMoving() && sneak)
+            fCurrentSpeed = fSneakSpeed;
+
+        //Deccelerate to sneak
+        if (isMoving() && sneak)
+            ChangeSpeed(fSneakSpeed, fAcceleration);
+
+        //Stop/Reset
+        if (!isMoving() && !sprint && !sneak && fCurrentSpeed != fWalkSpeed)
+            fCurrentSpeed = fWalkSpeed;
+    }
+
+    void ApplyMovement()
+    {
+        //Forward
+        if (bMoveForward)
+        {
+            vMovementDirection += MoveChar(mCharacter.transform.forward);
+            bMoveForward = false;
+        }
+        //Backward
+        if (bMoveBackward)
+        {
+            vMovementDirection += MoveChar(Invert(mCharacter.transform.forward));
+            bMoveBackward = false;
+        }
+        //Left
+        if (bMoveLeft)
+        {
+            vMovementDirection += MoveChar(Invert(mCharacter.transform.right));
+            bMoveLeft = false;
+        }
+        //Right
+        if (bMoveRight)
+        {
+            vMovementDirection += MoveChar(mCharacter.transform.right);
+            bMoveRight = false;
+        }
+
+        //Reset jumping
+        if (!bIsJumping && mCharacter.isGrounded)
+        {
+            vMovementDirection.y = 0;
+            nJumpCount = 0;
+        }
+    }
+
     void ApplyGravity()
     {
         if (!mCharacter.isGrounded)
+        {
             vMovementDirection += (Physics.gravity * Time.deltaTime);
-        else
-            vMovementDirection += Physics.gravity.normalized;
-
+        }
     }
 
     void ApplyFriction()
@@ -90,57 +193,27 @@ public class Character_Movement : MonoBehaviour
     void ApplySlope()
     {
         ray = new Ray(transform.position, Vector3.down);
-        Physics.Raycast(ray, out raycastHitInfo, 100);
+        Physics.Raycast(ray, out raycastHitInfo, 1);
 
         //Prevents character from 'bouncing' when going down a slope
         if (raycastHitInfo.normal.y < 1)
             vMovementDirection.y -= raycastHitInfo.normal.normalized.y;
     }
 
-    void MoveCharacter()
+    void ApplyJump()
     {
-        //Move
-        if (Input.GetKey(KeyCode.W))
-        {
-            vMovementDirection += Walk(mCharacter.transform.forward);
-        }
-        if (Input.GetKey(KeyCode.S))
-        {
-            vMovementDirection += Walk(Invert(mCharacter.transform.forward));
-        }
-        if (Input.GetKey(KeyCode.A))
-        {
-            vMovementDirection += Walk(Invert(mCharacter.transform.right));
-        }
-        if (Input.GetKey(KeyCode.D))
-        {
-            vMovementDirection += Walk(mCharacter.transform.right);
-        }
+        //If the player has double or triple jump, zero out vertical momentum before applying
+        if (1 < nJumpMax)
+            vMovementDirection.y = 0;
 
-        if (mCharacter.isGrounded && Input.GetKeyDown(KeyCode.Space))
-        {
-            vMovementDirection += Jump();
-            currentState = CharacterState.jumping;
-        }
+        vMovementDirection += new Vector3(0, fJumpHeight);
+        nJumpCount += 1;
+        bIsJumping = false;
     }
 
-    void UpdateStance()
+    Vector3 MoveChar(Vector3 direction)
     {
-        //Check Crouch Conditions
-        if (bCrouchToggle)
-            CheckCrouchToggle();
-        else
-            CheckCrouchHold();
-    }
-
-    Vector3 Jump()
-    {
-        return new Vector3(0, fJumpHeight);
-    }
-
-    Vector3 Walk(Vector3 direction)
-    {
-        return direction * fWalkSpeed;
+        return direction * fCurrentSpeed;
     }
 
     void CheckCrouchToggle()
@@ -171,14 +244,37 @@ public class Character_Movement : MonoBehaviour
         bIsCrouched = false;
     }
 
+    void ChangeSpeed(float target, float accel)
+    {
+        fCurrentSpeed = Mathf.MoveTowards(fCurrentSpeed, target, Time.deltaTime * accel);
+    }
+
+    bool isMoving()
+    {
+        return bMoveBackward || bMoveForward || bMoveLeft || bMoveRight;
+    }
+
     Vector3 Invert(Vector3 _direction)
     {
         return _direction * -1;
     }
 
-    void GroundClamp()
+    public void ResetCharacter()
     {
-        if (vMovementDirection.y > 0)
-            vMovementDirection.y = 0;
+        mCharacter.enabled = false;
+
+        //Zero out the velocities
+        mCharacter.velocity.Set(0, 0, 0);
+        vMovementDirection.Set(0, 0, 0);
+
+        //Set Character position to current spawn point
+        mCharacter.transform.SetPositionAndRotation(currSpawnPoint.transform.position, Quaternion.identity);
+
+        mCharacter.enabled = true;
+    }
+
+    public void ExternalVelocity(Vector3 v)
+    {
+        exVel = v;
     }
 }
